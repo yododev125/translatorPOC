@@ -40,6 +40,9 @@ class ModelTrainer:
             self.config = yaml.safe_load(f)['model']['fine_tuning']
         
         self.model = model
+        self.model.gradient_checkpointing_enable()
+        self.scaler = torch.cuda.amp.GradScaler()
+
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.output_dir = output_dir
@@ -55,9 +58,9 @@ class ModelTrainer:
         self.model.to(self.device)
 
         # Enable gradient checkpointing if available to save memory
-        if hasattr(self.model, 'gradient_checkpointing_enable'):
-            self.model.gradient_checkpointing_enable()
-            logger.info("Gradient checkpointing enabled")
+        # if hasattr(self.model, 'gradient_checkpointing_enable'):
+        #     self.model.gradient_checkpointing_enable()
+        #     logger.info("Gradient checkpointing enabled")
         
         self._setup_optimizer_scheduler()
         
@@ -68,6 +71,18 @@ class ModelTrainer:
         if self.use_wandb:
             wandb.init(project="financial-translation-poc", config=self.config)
     
+    def train_step(self, batch):
+        self.optimizer.zero_grad()
+        with torch.amp.autocast(dtype=torch.float16):
+            outputs = self.model(**batch)
+            loss = outputs.loss
+        
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+        self.scheduler.step()
+        
+        return loss.item()
     def _setup_optimizer_scheduler(self) -> None:
         """Set up optimizer and learning rate scheduler."""
         no_decay = ['bias', 'LayerNorm.weight']
