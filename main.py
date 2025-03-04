@@ -2,6 +2,8 @@
 Main entry point for the Financial Translation POC.
 """
 
+import utils.transport
+import utils.session
 import os
 import logging
 import argparse
