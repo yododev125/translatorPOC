@@ -1,23 +1,18 @@
 # Project Configuration
-
 project:
   name: "Financial Translation POC"
   version: "0.1.0"
   log_level: "INFO"
 
 data:
+  # For our file-pairing workflow, we use raw data folders.
   sources:
-    - name: "IMF Reports"
-      path: "data/sources/imf"
-    - name: "Central Bank Documents"
-      path: "data/sources/central_bank"
-    - name: "Financial News"
-      path: "data/sources/news"
-  
+    - name: "Raw Financial Documents"
+      en_path: "data/raw/en"
+      ar_path: "data/raw/ar"
   glossary:
     path: "data/glossary/financial_terms.csv"
     update_frequency: "weekly"
-  
   preprocessing:
     max_sequence_length: 128
     min_sentence_length: 5
@@ -26,14 +21,19 @@ data:
     test_split: 0.1
 
 model:
-  base_model: "mBART-large-50"  # Options: mBART, mT5, custom
+  # Using Facebook's mBART for our base model.
+  base_model: "facebook/mbart-large-50"
   fine_tuning:
     learning_rate: 2e-5
-    batch_size: 16
+    batch_size: 4
     epochs: 10
     warmup_steps: 500
     weight_decay: 0.01
-  
+    # Enable additional memory-saving and mixed precision options.
+    use_gradient_checkpointing: true
+    use_fp16: true
+    amp_enabled: true
+    use_wandb: false
   glossary_integration:
     method: "constrained_decoding"  # Options: constrained_decoding, attention_biasing
     confidence_threshold: 0.85
@@ -44,7 +44,7 @@ evaluation:
     - "ter"
     - "meteor"
     - "bertscore"
-  
+    - "term_accuracy"  # Domain-specific metric for glossary term accuracy
   human_evaluation:
     evaluators_per_document: 2
     evaluation_aspects:
@@ -62,4 +62,4 @@ api:
 security:
   encryption_enabled: true
   authentication_required: true
-  data_retention_days: 30 
+  data_retention_days: 30
